@@ -40,8 +40,6 @@ validation_dataset = train.flow_from_directory(
     class_mode="binary",
 )
 
-train_dataset.classes
-
 MODEL.compile(
     loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
     optimizer="adam",
@@ -60,7 +58,7 @@ model_fit = MODEL.fit(
 # TESTING ACCURACY
 
 test_images = train.flow_from_directory(
-    "test", target_size=(40, 47), batch_size=10, class_mode="binary"
+    "test", target_size=INPUT_SHAPE[:2], batch_size=BATCH_SIZE, class_mode="binary"
 )
 
 loss, acc = MODEL.evaluate(test_images, verbose=2)
