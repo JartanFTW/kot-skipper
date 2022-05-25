@@ -15,6 +15,7 @@ VALIDATION_PATH = os.path.join(PATH, "validation")
 BATCH_SIZE = 10
 BATCHES = 30
 INPUT_SHAPE = (50, 50, 3)
+METRICS = ["accuracy"]
 
 MODEL = tf.keras.models.Sequential(
     [
@@ -44,7 +45,7 @@ train_dataset.classes
 MODEL.compile(
     loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
     optimizer="adam",
-    metrics=["accuracy"],
+    metrics=METRICS,
 )
 
 
