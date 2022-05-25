@@ -21,14 +21,14 @@ class Window(tk.Tk):
 
     def create_layout(self):
 
+        self.sort_img = tk.Label(self)
+        self.display_next_img()
+        self.sort_img.pack()
+
         tk.Label(
             self,
             text="Click the Correct Gem",
         ).pack()
-
-        self.sort_img = tk.Label(self)
-        self.display_next_img()
-        self.sort_img.pack()
 
         buttons = tk.Label(self)
 
