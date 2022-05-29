@@ -61,7 +61,7 @@ def parse_arguments(argv=None):
     parser.add_argument(
         "-gm",
         "--gems",
-        help="which gems to target  format: r8 r7 b7 b8 y5",
+        help="pause when any of these gems are found  format: r8 r7 b7 b8 y5",
         type=str,
         nargs="*",
         choices=gem_choices,
