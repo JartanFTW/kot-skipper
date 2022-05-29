@@ -72,7 +72,7 @@ def parse_arguments(argv=None):
         "--retries",
         help="how many retries to perform on failed identification tasks",
         type=int,
-        default=2,
+        default=6,
     )
 
     parser.add_argument(
@@ -221,7 +221,7 @@ async def find_dungeon_gold(
             chest_image, sc, gs=False, conf=0.50
         )  # TODO confidence to command line parameter if needed
         if not chest_location:
-            print("Failed to identify chest location")
+            print(f"Failed to identify chest location - {retry + 1}")
             continue
         chest_location = (
             *chest_location[:2],
@@ -252,6 +252,7 @@ async def find_dungeon_gold(
             continue
 
         return int(result[0])
+    print(f"Failed to identify chest location {retries + 2} times - skipping")
 
 
 async def find_dungeon_gems(game):
@@ -332,15 +333,6 @@ async def main():
             find_dungeon_gems(game),
         )
 
-        if gold and ARGS.gold and gold >= ARGS.gold:
-            print(f"Dungeon gold {gold} fulfills stop requirement of {ARGS.gold} gold")
-            input(f"Press enter to continue")
-            continue
-        elif gems and ARGS.gems and any(gems) in ARGS.gems:
-            print("Dungeon gems ", " ".join(gems), "fulfills gem stop requirement")
-            input(f"Press enter to continue")
-            continue
-
         # validates new dungeon, skipping or waiting if same as last
         if gold == last_gold:
             if retries >= ARGS.retries:
@@ -355,6 +347,15 @@ async def main():
 
         retries = -1
         last_gold = gold
+
+        if gold and ARGS.gold and gold >= ARGS.gold:
+            print(f"Dungeon gold {gold} fulfills stop requirement of {ARGS.gold} gold")
+            input(f"Press enter to continue")
+            continue
+        elif gems and ARGS.gems and any(gems) in ARGS.gems:
+            print("Dungeon gems ", " ".join(gems), "fulfills gem stop requirement")
+            input(f"Press enter to continue")
+            continue
 
         await skip_dungeon(game)
 
