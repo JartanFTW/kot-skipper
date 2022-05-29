@@ -343,12 +343,12 @@ async def main():
 
         # validates new dungeon, skipping or waiting if same as last
         if gold == last_gold:
-            print("Dungeon same as last dungeon")
-
             if retries >= ARGS.retries:
+                print("Dungeon same as last dungeon - skipping")
                 retries = -1
                 await skip_dungeon(game)
                 continue
+            print("Dungeon same as last dungeon - waiting")
             await asyncio.sleep(ARGS.delay)
             retries += 1
             continue
