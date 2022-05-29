@@ -1,231 +1,363 @@
-"""
-This program takes screenshots constantly, checking them for totem chests. If a totem chest is detected, it crops the screenshot to the gem slots.
-Config is directly below imports.
-"""
-
-import pyautogui
-import os
+# Standard
 import asyncio
-from matplotlib import pyplot as plt
-from PIL import Image, ImageDraw, ImageShow, ImageGrab
-import pygetwindow
-from win32gui import FindWindow, FindWindowEx, GetWindowRect
-from win32api import PostMessage, MAKELONG
-from win32con import WM_LBUTTONDOWN, MK_LBUTTON, WM_LBUTTONUP
-from math import floor
-import easyocr
+import argparse
+from ctypes import windll
 from numpy import array
+import os
+import pyautogui
+import pyscreeze
+import sys
+from win32api import PostMessage, MAKELONG
+from win32ui import CreateDCFromHandle, CreateBitmap
+from win32gui import (
+    FindWindow,
+    FindWindowEx,
+    GetWindowRect,
+    GetWindowDC,
+    DeleteObject,
+    ReleaseDC,
+)
+from win32con import WM_LBUTTONDOWN, MK_LBUTTON, WM_LBUTTONUP
 
-### config
+# Third Party
+import easyocr
+from PIL import Image, ImageGrab, ImageDraw
 
-GAME_WINDOW_TITLE = "BlueStacks"
-BLUESTACKS = True
-
-
-SKIP = True
-# If the program skips a target and then stops, increase this delay
-SKIP_DELAY = 0.6
-# How many pixels north-west from bottom right of game window to click for skip
-SKIP_BUTTON_OFFSET = 50
+# Local
 
 
-# set to False to disable
-# REQUIRES INSTALLATION OF https://github.com/madmaze/pytesseract
-GOLD_TARGET = 20000
+global ARGS, PATH, debug_window_counter, debug_chest_counter, debug_slot_counter, debug_name_counter
 
-CHEST_IDENTIFICATION_GRAYSCALE = False
-CHEST_IDENTIFICATION_CONFIDENCE = 0.50
 
-GOLD_TEXT_IDENTIFICATION_MIN_THRESHOLD = 0.5
-TEXT_CONFIDENCE_THRESHOLD = 0.65
+def parse_arguments(argv=None):
+    """
+    Parses command line arguments and returns them
+    """
 
-### end config
+    parser = argparse.ArgumentParser(
+        description="A command line tool for the mobile game King of Thieves"
+    )
 
-PATH = os.getcwd()
-ASSETS = os.path.join(PATH, "assets")
+    parser.add_argument(
+        "emulator",
+        help="which emulator is being used",
+        type=str,
+        choices=["bluestacks"],
+    )
 
-###
+    parser.add_argument(
+        "-gd",
+        "--gold",
+        help="pause when this amount of gold or more is found",
+        type=int,
+    )
+    gem_choices = [
+        "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", 
+        "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", 
+        "g1", "g2", "g3", "g4", "g5", "g6", "g7", "g8", 
+        "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", 
+        "y1", "y2", "y3", "y4", "y5", "y6", "y7", "y8"
+    ]  # fmt: skip
+    parser.add_argument(
+        "-gm",
+        "--gems",
+        help="which gems to target  format: r8 r7 b7 b8 y5",
+        type=str,
+        nargs="*",
+        choices=gem_choices,
+    )
+
+    parser.add_argument(
+        "-r",
+        "--retries",
+        help="how many retries to perform on failed identification tasks",
+        type=int,
+        default=2,
+    )
+
+    parser.add_argument(
+        "-d",
+        "--delay",
+        help="how many seconds to wait between retries and after skipping",
+        type=float,
+        default=5,
+    )
+
+    parser.add_argument(
+        "--debug",
+        help="what type of debug images to save",
+        type=str,
+        nargs="*",
+        choices=["window", "chest", "slot", "name"],
+    )
+
+    args = parser.parse_args(argv)
+
+    # guaranteeing positive int
+    args.retries = abs(args.retries)
+    # guaranteeing emulator lower-case
+    args.emulator = args.emulator.lower()
+
+    return args
+
+
+def _screenshot_window(window) -> Image:
+    # https://stackoverflow.com/a/24352388
+
+    dimensions = GetWindowRect(window)
+
+    hwndDC = GetWindowDC(window)
+    mfcDC = CreateDCFromHandle(hwndDC)
+    saveDC = mfcDC.CreateCompatibleDC()
+
+    saveBitMap = CreateBitmap()
+    saveBitMap.CreateCompatibleBitmap(
+        mfcDC, dimensions[2] - dimensions[0], dimensions[3] - dimensions[1]
+    )
+
+    saveDC.SelectObject(saveBitMap)
+
+    windll.user32.PrintWindow(window, saveDC.GetSafeHdc(), 0)
+
+    bmpinfo = saveBitMap.GetInfo()
+    bmpstr = saveBitMap.GetBitmapBits(True)
+
+    image = Image.frombuffer(
+        "RGB", (bmpinfo["bmWidth"], bmpinfo["bmHeight"]), bmpstr, "raw", "BGRX", 0, 1
+    )
+
+    DeleteObject(saveBitMap.GetHandle())
+    saveDC.DeleteDC()
+    mfcDC.DeleteDC()
+    ReleaseDC(window, hwndDC)
+
+    return image
+
+
+async def screenshot_window(window) -> Image:
+    res = await asyncio.to_thread(_screenshot_window, window)
+
+    if ARGS.debug and "window" in ARGS.debug:
+        global debug_window_counter
+        output_path = os.path.join(PATH, "output", f"window_{debug_window_counter}.png")
+        debug_window_counter += 1
+        asyncio.create_task(asyncio.to_thread(res.save, output_path))
+
+    return res
+
+
+def get_best_text_result(results, type=None):
+    confidence = 0
+    best = None
+
+    for res in results:
+        if res[2] > confidence:
+            if type:
+                try:
+                    type(res[1])
+                except Exception:
+                    continue
+            confidence = res[2]
+            best = res[1]
+
+    if best:
+        return (best, res)
+    return None
+
+
+async def find_dungeon_owner(game, ocr: easyocr.Reader) -> str | None:
+    # this function is not used (and doesn't work very well)
+    sc = await screenshot_window(game)
+    dimensions = sc.size
+    dimensions = (
+        0,
+        dimensions[1] - int(dimensions[1] * 0.125),
+        dimensions[0],
+        dimensions[1],
+    )
+    crop = sc.crop(dimensions)
+
+    if ARGS.debug and "name" in ARGS.debug:
+        global debug_name_counter
+        output_path = os.path.join(PATH, "output", f"name_{debug_name_counter}.png")
+        debug_name_counter += 1
+        asyncio.create_task(asyncio.to_thread(crop.save, output_path))
+
+    image_array = array(crop)
+
+    results = await asyncio.to_thread(ocr.readtext, image_array)
+    result = get_best_text_result(results)
+
+    if result:
+        return result[0]
+    return None
 
 
 async def locate(img, bg, gs=True, conf=0.90):
     res = await asyncio.to_thread(
-        pyautogui.locate, img, bg, grayscale=gs, confidence=conf
+        pyscreeze.locate, img, bg, grayscale=gs, confidence=conf
     )
     return res
 
 
-async def locate_chest(
-    screen, gs=CHEST_IDENTIFICATION_GRAYSCALE, conf=CHEST_IDENTIFICATION_CONFIDENCE
-):
-    chest = os.path.join(ASSETS, "chest.png")
-    totem = await locate(chest, screen, gs=gs, conf=conf)
-    if totem:
-        return [totem[0], totem[1], totem[2], totem[3]]
-    return False
+async def find_dungeon_gold(
+    game, ocr: easyocr.Reader, retries=None, delay=None
+) -> int | None:
+    if not retries:
+        retries = ARGS.retries
+    if not delay:
+        delay = ARGS.delay
+    retry = -1  # need to guarantee 1 retry
+    chest_image = os.path.join(PATH, "assets", "chest.png")
 
+    while retry < retries:
+        if retry != -1:
+            await asyncio.sleep(delay)
+        retry += 1
 
-async def get_chest_gold(chest, ocr: easyocr.Reader):
-    chest_array = array(chest.resize((100, 100)))
-    results = ocr.readtext(
-        chest_array,
-        allowlist="0123456789",
-        low_text=GOLD_TEXT_IDENTIFICATION_MIN_THRESHOLD,
-    )
-    best_conf = 0
-    best = None
-    for res in results:
-        if res[2] > best_conf:
-            try:
-                int(res[1])
-            except (TypeError, ValueError):
-                continue
+        sc = await screenshot_window(game)
 
-            best_conf = res[2]
-            best = res[1]
-
-    if best_conf < TEXT_CONFIDENCE_THRESHOLD:
-        return None
-    return int(best)
-
-
-async def locate_gem_slots(
-    screen, gs=CHEST_IDENTIFICATION_GRAYSCALE, conf=CHEST_IDENTIFICATION_CONFIDENCE
-):
-
-    # attempt to get slot locations using chest
-    slots = await locate_chest(screen)
-
-    if slots:
-
-        # moving top left corner up by 75% of chest height
-        slots[1] -= round(slots[3] * 0.75)
-        # moving top left corner left by 10% of chest width
-        slots[0] -= round(slots[2] * 0.1)
-
-        # setting height to 60% of chest height
-        slots[3] = round(slots[3] * 0.60)
-        # setting width to 125% of chest width
-        slots[2] = round(slots[2] * 1.25)
-
-        return slots
-
-    return False
-
-
-async def pause_or_continue(found=False, game_window=None):
-
-    if not found and SKIP:
-
-        # get position of window and find skip button position relative to it
-        position = GetWindowRect(game_window)
-        position = MAKELONG(
-            position[2] - position[0] - SKIP_BUTTON_OFFSET,
-            position[3] - position[1] - SKIP_BUTTON_OFFSET,
+        chest_location = await locate(
+            chest_image, sc, gs=False, conf=0.50
+        )  # TODO confidence to command line parameter if needed
+        if not chest_location:
+            print("Failed to identify chest location")
+            continue
+        chest_location = (
+            *chest_location[:2],
+            chest_location[0] + chest_location[2],
+            chest_location[1] + chest_location[3],
         )
 
-        if BLUESTACKS:
-            game_window = FindWindowEx(game_window, None, None, None)
+        chest = sc.crop(chest_location)
 
-        # click skip
-        PostMessage(game_window, WM_LBUTTONDOWN, MK_LBUTTON, position)
-        PostMessage(game_window, WM_LBUTTONUP, None, position)
+        if ARGS.debug and "chest" in ARGS.debug:
+            global debug_chest_counter
+            output_path = os.path.join(
+                PATH, "output", f"chest_{debug_chest_counter}.png"
+            )
+            debug_chest_counter += 1
+            asyncio.create_task(asyncio.to_thread(chest.save, output_path))
 
-        await asyncio.sleep(SKIP_DELAY)
-    else:
-        input("Press Enter to continue")
-        print("---")
-        print("Beginning in 5 seconds")
-        await asyncio.sleep(5)
+        chest_array = array(chest)
+
+        results = await asyncio.to_thread(
+            ocr.readtext, chest_array, allowlist="0123456789", low_text=0.5
+        )
+        # TODO low_text to command line parameter if needed
+        result = get_best_text_result(results, type=int)
+
+        if not result:
+            print("Failed to identify chest text")
+            continue
+
+        return int(result[0])
+
+
+async def find_dungeon_gems(game):
+    # WIP
+    return None
+
+
+async def skip_dungeon(game) -> None:
+    skip_image = os.path.join(PATH, "assets", "skip.png")
+
+    sc = await screenshot_window(game)
+
+    skip_location = await locate(skip_image, sc)
+
+    if not skip_location:
+        print("Failed to locate skip button")
+        return
+
+    click_position = (
+        skip_location[0] + int(skip_location[2] / 2),
+        skip_location[1] + int(skip_location[3] / 2),
+    )
+
+    click_position = MAKELONG(*click_position)
+
+    if ARGS.emulator == "bluestacks":
+        game_window = FindWindowEx(game, None, None, None)
+
+    PostMessage(game_window, WM_LBUTTONDOWN, MK_LBUTTON, click_position)
+    PostMessage(game_window, WM_LBUTTONUP, None, click_position)
+
+    await asyncio.sleep(ARGS.delay)
+
+    return
 
 
 async def main():
+    global ARGS, PATH
+
+    print("Press CTRL + C on this console to exit at any time")
 
     # setup
 
-    if GOLD_TARGET:
-        ocr = easyocr.Reader(["en"])
+    if getattr(sys, "frozen", False):  # handles compiled to exe
+        PATH = os.path.dirname(sys.executable)
+    else:
+        PATH = os.path.dirname(os.path.abspath(__file__))
 
-    retry = False
+    ARGS = parse_arguments(sys.argv[1:])
+    retries = -1
+    last_gold = 0
+
+    if ARGS.emulator == "bluestacks":
+        game = FindWindow(None, "BlueStacks")
+    assert game
+
+    if ARGS.debug:
+        if "window" in ARGS.debug:
+            global debug_window_counter
+            debug_window_counter = 1
+        if "chest" in ARGS.debug:
+            global debug_chest_counter
+            debug_chest_counter = 1
+        if "slot" in ARGS.debug:
+            global debug_slot_counter
+            debug_slot_counter = 1
+        if "name" in ARGS.debug:
+            global debug_name_counter
+            debug_name_counter = 1
+
+    ocr = easyocr.Reader(["en"])
 
     # start
 
-    print("Beginning in 5 seconds")
-    await asyncio.sleep(5)
-
     while True:
-
-        game_window = FindWindow(None, GAME_WINDOW_TITLE)
-        game_window_rectangle = GetWindowRect(game_window)
-
-        # screenshot window using PIL
-        screen = ImageGrab.grab(bbox=game_window_rectangle, all_screens=True)
-
-        # Checking for gold
-
-        if GOLD_TARGET:
-            chest = await locate_chest(screen)
-
-            if chest:
-                chest_crop = screen.crop(
-                    (chest[0], chest[1], chest[0] + chest[2], chest[1] + chest[3])
-                )
-
-                # + 25 to add buffer to help prevent OCR mistaking for chest edge for #1
-
-                gold = await get_chest_gold(chest_crop, ocr)
-                if gold:
-                    print(f"Detected {gold} gold")
-                    if gold > GOLD_TARGET:
-                        print(f"Found target with {gold} gold")
-                        await pause_or_continue(found=True, game_window=game_window)
-                        continue
-                else:
-                    if not retry:
-                        print("Failed to detect gold count - retrying in 5 seconds")
-                        await asyncio.sleep(5)
-                        retry = True
-                        continue
-                    print("Failed to detect gold count - skipping")
-                    retry = False
-                    await pause_or_continue(game_window=game_window)
-                    continue
-
-        # Identify slots
-
-        slots = await locate_gem_slots(screen)
-
-        if not slots:
-            if not retry:
-                print("Failed to locate slots - retrying in 5 seconds")
-                await asyncio.sleep(5)
-                retry = True
-                continue
-            print("Failed to locate slots - skipping")
-            retry = False
-            await pause_or_continue(game_window=game_window)
-            continue
-
-        # crop to gem slots
-
-        slots = screen.crop(
-            (slots[0], slots[1], slots[0] + slots[2], slots[1] + slots[3])
+        gold, gems = await asyncio.gather(
+            find_dungeon_gold(game, ocr),
+            find_dungeon_gems(game),
         )
 
-        # Split slots into three sections
-        slot_dimensions = []
-        x, y = slots.size
-        x3 = floor(x / 3)
-        slot_dimensions = [(0, 0, x3, y), (x3, 0, x3 * 2, y), (x3 * 2, 0, x, y)]
+        if gold and ARGS.gold and gold >= ARGS.gold:
+            print(f"Dungeon gold {gold} fulfills stop requirement of {ARGS.gold} gold")
+            input(f"Press enter to continue")
+            continue
+        elif gems and ARGS.gems and any(gems) in ARGS.gems:
+            print("Dungeon gems ", " ".join(gems), "fulfills gem stop requirement")
+            input(f"Press enter to continue")
+            continue
 
-        for dimension in slot_dimensions:
+        # validates new dungeon, skipping or waiting if same as last
+        if gold == last_gold:
+            print("Dungeon same as last dungeon")
 
-            slot = slots.crop(dimension)
+            if retries >= ARGS.retries:
+                retries = -1
+                await skip_dungeon(game)
+                continue
+            await asyncio.sleep(ARGS.delay)
+            retries += 1
+            continue
 
-        await pause_or_continue(game_window=game_window)
+        retries = -1
+        last_gold = gold
+
+        await skip_dungeon(game)
 
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        pass
+    asyncio.run(main())
