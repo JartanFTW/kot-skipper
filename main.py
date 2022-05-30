@@ -2,6 +2,7 @@
 import asyncio
 import argparse
 from ctypes import windll
+from math import floor, ceil
 from numpy import array
 import os
 import pyautogui
@@ -26,7 +27,7 @@ from PIL import Image, ImageGrab, ImageDraw
 # Local
 
 
-global ARGS, PATH, debug_window_counter, debug_chest_counter, debug_slot_counter, debug_name_counter
+global ARGS, PATH, debug_window_counter, debug_chest_counter, debug_slot_counter, debug_name_counter, debug_slots_counter, debug_tasks
 
 
 def parse_arguments(argv=None):
@@ -88,7 +89,7 @@ def parse_arguments(argv=None):
         help="what type of debug images to save",
         type=str,
         nargs="*",
-        choices=["window", "chest", "slot", "name"],
+        choices=["window", "chest", "slots", "slot", "name", "screenshotmode"],
     )
 
     args = parser.parse_args(argv)
@@ -138,10 +139,12 @@ async def screenshot_window(window) -> Image:
     res = await asyncio.to_thread(_screenshot_window, window)
 
     if ARGS.debug and "window" in ARGS.debug:
-        global debug_window_counter
+        global debug_window_counter, debug_tasks
         output_path = os.path.join(PATH, "output", f"window_{debug_window_counter}.png")
         debug_window_counter += 1
-        asyncio.create_task(asyncio.to_thread(res.save, output_path))
+        debug_tasks.append(
+            asyncio.create_task(asyncio.to_thread(res.save, output_path))
+        )
 
     return res
 
@@ -178,10 +181,12 @@ async def find_dungeon_owner(game, ocr: easyocr.Reader) -> str | None:
     crop = sc.crop(dimensions)
 
     if ARGS.debug and "name" in ARGS.debug:
-        global debug_name_counter
+        global debug_name_counter, debug_tasks
         output_path = os.path.join(PATH, "output", f"name_{debug_name_counter}.png")
         debug_name_counter += 1
-        asyncio.create_task(asyncio.to_thread(crop.save, output_path))
+        debug_tasks.append(
+            asyncio.create_task(asyncio.to_thread(crop.save, output_path))
+        )
 
     image_array = array(crop)
 
@@ -201,7 +206,7 @@ async def locate(img, bg, gs=True, conf=0.90):
 
 
 async def find_dungeon_gold(
-    game, ocr: easyocr.Reader, retries=None, delay=None
+    game, ocr: easyocr.Reader | None, retries=None, delay=None
 ) -> int | None:
     if not retries:
         retries = ARGS.retries
@@ -232,12 +237,16 @@ async def find_dungeon_gold(
         chest = sc.crop(chest_location)
 
         if ARGS.debug and "chest" in ARGS.debug:
-            global debug_chest_counter
+            global debug_chest_counter, debug_tasks
             output_path = os.path.join(
                 PATH, "output", f"chest_{debug_chest_counter}.png"
             )
             debug_chest_counter += 1
-            asyncio.create_task(asyncio.to_thread(chest.save, output_path))
+            debug_tasks.append(
+                asyncio.create_task(asyncio.to_thread(chest.save, output_path))
+            )
+        if ARGS.debug and "screenshotmode" in ARGS.debug:
+            return
 
         chest_array = array(chest)
 
@@ -252,10 +261,100 @@ async def find_dungeon_gold(
             continue
 
         return int(result[0])
-    print(f"Failed to identify chest location {retries + 2} times - skipping")
+    print(f"Failed to identify chest location {retries + 2} times")
+
+
+async def find_gem_slots(game, retries=None, delay=None):
+    if not retries:
+        retries = ARGS.retries
+    if not delay:
+        delay = ARGS.delay
+    retry = -1  # need to guarantee 1 retry
+    chest_image = os.path.join(PATH, "assets", "chest.png")
+
+    while retry < retries:
+        if retry != -1:
+            await asyncio.sleep(delay)
+        retry += 1
+
+        sc = await screenshot_window(game)
+
+        chest_location = await locate(
+            chest_image, sc, gs=False, conf=0.50
+        )  # TODO confidence to command line parameter if needed
+        if not chest_location:
+            print(f"Failed to identify chest location - {retry + 1}")
+            continue
+
+        slots = [
+            chest_location[0],
+            chest_location[1],
+            chest_location[2],
+            chest_location[3],
+        ]
+
+        # move NW corner left by 10% of chest width
+        slots[0] = floor(slots[0] - slots[2] * 0.1)
+        # move NW corner up by 75% of chest height
+        slots[1] = floor(slots[1] - slots[3] * 0.75)
+        # expand width by 20%
+        slots[2] = ceil(slots[2] * 1.2)
+        # reduce height by 40%
+        slots[3] = ceil(slots[3] * 0.60)
+
+        slots = sc.crop((slots[0], slots[1], slots[0] + slots[2], slots[1] + slots[3]))
+
+        if ARGS.debug and "slots" in ARGS.debug:
+            global debug_slots_counter, debug_tasks
+            output_path = os.path.join(
+                PATH, "output", f"slots_{debug_slots_counter}.png"
+            )
+            debug_slots_counter += 1
+            debug_tasks.append(
+                asyncio.create_task(asyncio.to_thread(slots.save, output_path))
+            )
+
+        return slots
+
+    print("Failed to identify gem slots")
+    return None
+
+
+def find_individual_gem_slots(slots):
+
+    x, y = slots.size
+    x3, rem = divmod(x, 3)
+    # division remainder is included to reduce images getting cut off
+    slot_dimensions = [
+        (0, 0, x3 + rem, y),
+        (x3 - rem, 0, x3 * 2 + rem, y),
+        (x3 * 2 - rem, 0, x, y),
+    ]
+
+    individual_slots = []
+    for dimension in slot_dimensions:
+
+        slot = slots.crop(dimension)
+        individual_slots.append(slot)
+
+        if ARGS.debug and "slot" in ARGS.debug:
+            global debug_slot_counter, debug_tasks
+            output_path = os.path.join(PATH, "output", f"slot_{debug_slot_counter}.png")
+            debug_slot_counter += 1
+            debug_tasks.append(
+                asyncio.create_task(asyncio.to_thread(slot.save, output_path))
+            )
+
+    return individual_slots
 
 
 async def find_dungeon_gems(game):
+
+    slots = await find_gem_slots(game)
+    if not slots:
+        return None
+    slots = find_individual_gem_slots(slots)
+
     # WIP
     return None
 
@@ -289,6 +388,11 @@ async def skip_dungeon(game) -> None:
     return
 
 
+async def ainput(text=None):
+    res = await asyncio.to_thread(input, text)
+    return res
+
+
 async def main():
     global ARGS, PATH
 
@@ -310,12 +414,17 @@ async def main():
     assert game
 
     if ARGS.debug:
+        global debug_tasks
+        debug_tasks = []
         if "window" in ARGS.debug:
             global debug_window_counter
             debug_window_counter = 1
         if "chest" in ARGS.debug:
             global debug_chest_counter
             debug_chest_counter = 1
+        if "slots" in ARGS.debug:
+            global debug_slots_counter
+            debug_slots_counter = 1
         if "slot" in ARGS.debug:
             global debug_slot_counter
             debug_slot_counter = 1
@@ -323,6 +432,21 @@ async def main():
             global debug_name_counter
             debug_name_counter = 1
 
+    # debug screenshot mode
+    if ARGS.debug and "screenshotmode" in ARGS.debug:
+        try:
+            while True:
+                await ainput("Press enter when a totem is visible")
+                await asyncio.gather(
+                    find_dungeon_gold(game, None),
+                    find_dungeon_gems(game),
+                )
+                await asyncio.wait(debug_tasks)
+        except KeyboardInterrupt:
+            # prevents keyboardinterrupt causing normal program function to begin
+            return
+
+    # placed after debug screenshot mode to prevent unnecessary launching
     ocr = easyocr.Reader(["en"])
 
     # start
@@ -350,11 +474,11 @@ async def main():
 
         if gold and ARGS.gold and gold >= ARGS.gold:
             print(f"Dungeon gold {gold} fulfills stop requirement of {ARGS.gold} gold")
-            input(f"Press enter to continue")
+            await ainput(f"Press enter to continue")
             continue
         elif gems and ARGS.gems and any(gems) in ARGS.gems:
             print("Dungeon gems ", " ".join(gems), "fulfills gem stop requirement")
-            input(f"Press enter to continue")
+            await ainput(f"Press enter to continue")
             continue
 
         await skip_dungeon(game)
