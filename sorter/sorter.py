@@ -80,7 +80,6 @@ class Window(tk.Tk):
             )
         except IndexError:
             self.sort_img.configure(image=None)
-            self.sort_img.image = None
             self.sort_img.configure(text="No more unsorted images")
             return
 
@@ -96,14 +95,29 @@ class Window(tk.Tk):
 
         file_path = self.sort_img_path
         img = os.path.join(PATH, "unsorted", file_path)
+        file_name = os.path.basename(file_path)
+
         move_to = os.path.join(
             PATH,
             "sorted",
             f"{tier}",
             f"{COLORS_FULL[color]}",
-            os.path.basename(file_path),
+            file_name,
         )
+
         print(f"Moving {os.path.basename(file_path)} to {COLORS_FULL[color]}-{tier}")
+
+        counter = 0
+        while os.path.isfile(move_to):
+            counter += 1
+            move_to = (
+                os.path.splitext(move_to)[0]
+                + f" ({counter})"
+                + os.path.splitext(move_to)[1]
+            )
+        if counter != 0:
+            print(f"Found duplicate file, adding ' ({counter})' to file name")
+
         os.rename(img, move_to)
 
 
