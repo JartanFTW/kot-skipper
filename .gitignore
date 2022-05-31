@@ -134,3 +134,4 @@ dmypy.json
 sorter/unsorted/*
 image_scraper/output/*
 output/*
+tensorflow/model
