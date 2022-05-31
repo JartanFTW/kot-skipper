@@ -23,11 +23,45 @@ from win32con import WM_LBUTTONDOWN, MK_LBUTTON, WM_LBUTTONUP
 # Third Party
 import easyocr
 from PIL import Image, ImageGrab, ImageDraw
+from tensorflow import keras
 
 # Local
 
 
-global ARGS, PATH, debug_window_counter, debug_chest_counter, debug_slot_counter, debug_name_counter, debug_slots_counter, debug_tasks
+global ARGS, PATH, debug_window_counter, debug_chest_counter, debug_slot_counter, debug_name_counter, debug_slots_counter, debug_gems_counter, debug_tasks
+
+
+class GemIdentifier:
+    def __init__(self):
+        self.model = keras.models.load_model(os.path.join(PATH, "identify_gem"))
+        self.gems = [
+            "b1", "g1", "p1", "r1", "y1", "b2", "g2", "p2", 
+            "r2", "y2", "b3", "g3", "p3", "r3", "y3", "b4", 
+            "g4", "p4", "r4", "y4", "b5", "g5", "p5", "r5", 
+            "y5", "b6", "g6", "p6", "r6", "y6", "b7", "g7", 
+            "p7", "r7", "y7", "b8", "g8", "p8", "r8", "y8",
+        ]  # fmt: skip
+
+    def identify_gem(self, image: Image):
+        resized_image = image.resize((50, 50), resample=Image.Resampling.NEAREST)
+        resized_array = array(resized_image)
+        input_array = array([resized_array])
+        prediction = self.model.predict(input_array, verbose=0).tolist()
+
+        result = (self.gems[prediction.index(max(prediction))], max(prediction))
+        return result
+
+    def identify_gems(self, images: list):
+        image_arrays = []
+        for image in images:
+            resized_image = image.resize((50, 50), resample=Image.Resampling.NEAREST)
+            resized_array = array(resized_image)
+            image_arrays.append(resized_array)
+        input_array = array(image_arrays)
+        predictions = [x.tolist() for x in self.model.predict(input_array, verbose=0)]
+
+        results = [(self.gems[x.index(max(x))], max(x)) for x in predictions]
+        return results
 
 
 def parse_arguments(argv=None):
@@ -53,6 +87,8 @@ def parse_arguments(argv=None):
         type=int,
     )
     gem_choices = [
+        "1", "2", "3", "4", "5", "6", "7", "8", 
+        "r", "b", "g", "p", "y",
         "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", 
         "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", 
         "g1", "g2", "g3", "g4", "g5", "g6", "g7", "g8", 
@@ -89,7 +125,7 @@ def parse_arguments(argv=None):
         help="what type of debug images to save",
         type=str,
         nargs="*",
-        choices=["window", "chest", "slots", "slot", "name", "screenshotmode"],
+        choices=["window", "chest", "slots", "slot", "gems", "name", "screenshotmode"],
     )
 
     args = parser.parse_args(argv)
@@ -98,6 +134,29 @@ def parse_arguments(argv=None):
     args.retries = abs(args.retries)
     # guaranteeing emulator lower-case
     args.emulator = args.emulator.lower()
+
+    # parsing gem args
+    if args.gems:
+        # collects lone integers (tiers)
+        tiers = [x for x in args.gems if x.isdigit()]
+        # collects lone strings (colors)
+        colors = [x for x in args.gems if not any(char.isdigit() for char in x)]
+        # guarantees a char and a digit for all remaining
+        args.gems = [
+            x
+            for x in args.gems
+            if not x.isdigit() and any(char.isdigit() for char in x)
+        ]
+        # if a tier is provided, add all colors of that tier
+        for tier in tiers:
+            for color in ["r", "b", "g", "p", "y"]:
+                if f"{color}{tier}" not in args.gems:
+                    args.gems.append(f"{color}{tier}")
+        # if a color is provided, add all tiers of that color
+        for color in colors:
+            for tier in range(1, 9):
+                if f"{color}{tier}" not in args.gems:
+                    args.gems.append(f"{color}{tier}")
 
     return args
 
@@ -348,15 +407,35 @@ def find_individual_gem_slots(slots):
     return individual_slots
 
 
-async def find_dungeon_gems(game):
+def create_dir(dir):
+    if not os.path.exists(dir):
+        os.mkdir(dir)
+
+
+async def find_dungeon_gems(game, identifier: GemIdentifier):
 
     slots = await find_gem_slots(game)
     if not slots:
         return None
     slots = find_individual_gem_slots(slots)
 
-    # WIP
-    return None
+    gems = identifier.identify_gems(slots)
+
+    i = -1
+    for gem in gems:
+        i += 1
+        if ARGS.debug and "gems" in ARGS.debug:
+            global debug_gems_counter, debug_tasks
+            create_dir(os.path.join(PATH, "output", gem[0]))
+            output_path = os.path.join(
+                PATH, "output", gem[0], f"{gem[0]}_{debug_gems_counter}.png"
+            )
+            debug_gems_counter += 1
+            debug_tasks.append(
+                asyncio.create_task(asyncio.to_thread(slots[i].save, output_path))
+            )
+
+    return gems
 
 
 async def skip_dungeon(game) -> None:
@@ -406,7 +485,7 @@ async def main():
         PATH = os.path.dirname(os.path.abspath(__file__))
 
     ARGS = parse_arguments(sys.argv[1:])
-    retries = -1
+    retries = 0
     last_gold = 0
 
     if ARGS.emulator == "bluestacks":
@@ -431,6 +510,11 @@ async def main():
         if "name" in ARGS.debug:
             global debug_name_counter
             debug_name_counter = 1
+        if "gems" in ARGS.debug:
+            global debug_gems_counter
+            debug_gems_counter = 1
+
+    gem_identifier = GemIdentifier()
 
     # debug screenshot mode
     if ARGS.debug and "screenshotmode" in ARGS.debug:
@@ -439,7 +523,7 @@ async def main():
                 await ainput("Press enter when a totem is visible")
                 await asyncio.gather(
                     find_dungeon_gold(game, None),
-                    find_dungeon_gems(game),
+                    find_dungeon_gems(game, gem_identifier),
                 )
                 await asyncio.wait(debug_tasks)
         except KeyboardInterrupt:
@@ -454,14 +538,14 @@ async def main():
     while True:
         gold, gems = await asyncio.gather(
             find_dungeon_gold(game, ocr),
-            find_dungeon_gems(game),
+            find_dungeon_gems(game, gem_identifier),
         )
 
         # validates new dungeon, skipping or waiting if same as last
         if gold == last_gold:
             if retries >= ARGS.retries:
                 print("Dungeon same as last dungeon - skipping")
-                retries = -1
+                retries = 0
                 await skip_dungeon(game)
                 continue
             print("Dungeon same as last dungeon - waiting")
@@ -469,17 +553,25 @@ async def main():
             retries += 1
             continue
 
-        retries = -1
+        retries = 0
         last_gold = gold
 
         if gold and ARGS.gold and gold >= ARGS.gold:
             print(f"Dungeon gold {gold} fulfills stop requirement of {ARGS.gold} gold")
             await ainput(f"Press enter to continue")
             continue
-        elif gems and ARGS.gems and any(gems) in ARGS.gems:
-            print("Dungeon gems ", " ".join(gems), "fulfills gem stop requirement")
-            await ainput(f"Press enter to continue")
-            continue
+        try:
+            if gems and ARGS.gems and any(x in ARGS.gems for x in [x[0] for x in gems]):
+                print(
+                    "Dungeon gems",
+                    " ".join([x[0] for x in gems]),
+                    "fulfills gem stop requirement",
+                )
+                await ainput(f"Press enter to continue")
+                continue
+        except TypeError:
+            print(gems)
+            print(ARGS.gems)
 
         await skip_dungeon(game)
 
