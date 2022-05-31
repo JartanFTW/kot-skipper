@@ -1,10 +1,6 @@
 import tensorflow as tf
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-import numpy
 import os
-from PIL import Image
 import matplotlib.pyplot as plt
-from math import ceil
 
 # START CONFIG
 
