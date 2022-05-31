@@ -50,13 +50,6 @@ class AccuracyCallback(tf.keras.callbacks.Callback):
             self.model.stop_training = True
 
 
-# train_datagen = ImageDataGenerator(
-#     rescale=1 / 255,
-#     validation_split=VALIDATION_SPLIT,
-#     width_shift_range=0.1,
-#     height_shift_range=0.1,
-#     fill_mode="nearest",
-# )
 train_generator = tf.keras.utils.image_dataset_from_directory(
     TRAIN_PATH,
     validation_split=VALIDATION_SPLIT,
@@ -79,22 +72,6 @@ validation_generator = tf.keras.utils.image_dataset_from_directory(
 )
 
 print(train_generator.element_spec)
-
-# train_generator = train_datagen.flow_from_directory(
-#     TRAIN_PATH,
-#     target_size=IMAGE_SIZE,
-#     batch_size=BATCH_SIZE,
-#     class_mode=CLASS_MODE,
-#     seed=SEED,
-# )
-# validation_generator = train_datagen.flow_from_directory(
-#     TRAIN_PATH,
-#     target_size=IMAGE_SIZE,
-#     batch_size=BATCH_SIZE,
-#     class_mode=CLASS_MODE,
-#     seed=SEED,
-#     subset="validation",
-# )
 
 # I can't find a way to pull the number of images directly from the generators- which is stupid because they output it to console
 # this repeat stuff just outright doesn't work, even if I pass in the correct amount of repeats.
