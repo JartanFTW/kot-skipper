@@ -40,7 +40,7 @@ How many seconds to wait between retries and after skipping
 ### --debug (list)
 
 Enables the program to output images to file during different stages of processing.
-Screenshotmode allows the user to use the program to identify gold/gems on-demand. Useful for getting particular debug images.
+Screenshotmode allows the user to use the program to identify gold/gems on-demand. Useful for getting particular debug images.  
 Options: window, chest, slot, slot, gems, name, screenshotmode
 
 # Educational Purpose
