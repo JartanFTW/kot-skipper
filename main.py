@@ -5,7 +5,6 @@ from ctypes import windll
 from math import floor, ceil
 from numpy import array
 import os
-import pyautogui
 import pyscreeze
 import sys
 from win32api import PostMessage, MAKELONG
@@ -22,7 +21,7 @@ from win32con import WM_LBUTTONDOWN, MK_LBUTTON, WM_LBUTTONUP
 
 # Third Party
 import easyocr
-from PIL import Image, ImageGrab, ImageDraw
+from PIL import Image
 from tensorflow import keras
 
 # Local
@@ -35,12 +34,12 @@ class GemIdentifier:
     def __init__(self):
         self.model = keras.models.load_model(os.path.join(PATH, "identify_gem"))
         self.gems = [
-            "b1", "g1", "p1", "r1", "y1", "b2", "g2", "p2", 
-            "r2", "y2", "b3", "g3", "p3", "r3", "y3", "b4", 
-            "g4", "p4", "r4", "y4", "b5", "g5", "p5", "r5", 
-            "y5", "b6", "g6", "p6", "r6", "y6", "b7", "g7", 
-            "p7", "r7", "y7", "b8", "g8", "p8", "r8", "y8",
-        ]  # fmt: skip
+            "0",
+            'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 
+            'g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 
+            'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 
+            'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8', 
+            'y1', 'y2', 'y3', 'y4', 'y5', 'y6', 'y7', 'y8']  # fmt: skip
 
     def identify_gem(self, image: Image):
         resized_image = image.resize((50, 50), resample=Image.Resampling.NEAREST)
@@ -98,7 +97,7 @@ def parse_arguments(argv=None):
     parser.add_argument(
         "-gm",
         "--gems",
-        help="pause when any of these gems are found  format: r8 r7 b7 b8 y5",
+        help="pause when any of these gems are found",
         type=str,
         nargs="*",
         choices=gem_choices,
@@ -560,18 +559,15 @@ async def main():
             print(f"Dungeon gold {gold} fulfills stop requirement of {ARGS.gold} gold")
             await ainput(f"Press enter to continue")
             continue
-        try:
-            if gems and ARGS.gems and any(x in ARGS.gems for x in [x[0] for x in gems]):
-                print(
-                    "Dungeon gems",
-                    " ".join([x[0] for x in gems]),
-                    "fulfills gem stop requirement",
-                )
-                await ainput(f"Press enter to continue")
-                continue
-        except TypeError:
-            print(gems)
-            print(ARGS.gems)
+
+        if gems and ARGS.gems and any(x in ARGS.gems for x in [x[0] for x in gems]):
+            print(
+                "Dungeon gems",
+                " ".join([x[0] for x in gems]),
+                "fulfills gem stop requirement",
+            )
+            await ainput(f"Press enter to continue")
+            continue
 
         await skip_dungeon(game)
 
