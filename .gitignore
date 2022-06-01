@@ -127,3 +127,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+# custom
+
+sorter/unsorted/*
+image_scraper/output/*
+output/*
+tensorflow/model
