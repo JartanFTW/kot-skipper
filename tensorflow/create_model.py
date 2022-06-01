@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 
 # START CONFIG
 
-VAL_ACCURACY_TARGET = 0.98
+VAL_ACCURACY_TARGET = 0.97
 # num of images MUST BE >= BATCH_SIZE * EPOCHS * STEPS
 BATCH_SIZE = 40
-EPOCHS = 65
-STEPS = max(EPOCHS // BATCH_SIZE, 1)
+EPOCHS = 60
+STEPS = 2
 REPEATS = 25
 SEED = 100
 
@@ -24,9 +24,9 @@ MODEL = tf.keras.models.Sequential(
     [
         tf.keras.layers.Rescaling(1.0 / 255, input_shape=(*IMAGE_SIZE, 3)),
         tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(160, activation="relu"),
-        tf.keras.layers.Dense(80, activation="relu"),
-        tf.keras.layers.Dense(40, activation="softmax"),
+        tf.keras.layers.Dense(164, activation="relu"),
+        tf.keras.layers.Dense(164, activation="relu"),
+        tf.keras.layers.Dense(41, activation="softmax"),
     ]
 )
 
@@ -41,7 +41,7 @@ class AccuracyCallback(tf.keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs={}):
         if logs.get("val_accuracy") >= VAL_ACCURACY_TARGET:
             print(
-                f"Reached {round(logs.get('accuracy'), 4)} accuracy. Cancelling training."
+                f"Reached {round(logs.get('val_accuracy'), 4)} validation accuracy. Cancelling training."
             )
             self.model.stop_training = True
 
