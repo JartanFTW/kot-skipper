@@ -442,7 +442,7 @@ async def skip_dungeon(game) -> None:
 
     sc = await screenshot_window(game)
 
-    skip_location = await locate(skip_image, sc)
+    skip_location = await locate(skip_image, sc, conf=0.7)
 
     if not skip_location:
         print("Failed to locate skip button")
