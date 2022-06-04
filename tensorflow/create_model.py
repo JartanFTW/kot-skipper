@@ -4,12 +4,12 @@ import matplotlib.pyplot as plt
 
 # START CONFIG
 
-VAL_ACCURACY_TARGET = 0.97
+VAL_ACCURACY_TARGET = 0.99
 # num of images MUST BE >= BATCH_SIZE * EPOCHS * STEPS
 BATCH_SIZE = 40
-EPOCHS = 60
-STEPS = 2
-REPEATS = 25
+EPOCHS = 50
+STEPS = 10
+REPEATS = 5
 SEED = 100
 
 VALIDATION_SPLIT = 0.1
@@ -23,6 +23,8 @@ METRICS = ["accuracy"]
 MODEL = tf.keras.models.Sequential(
     [
         tf.keras.layers.Rescaling(1.0 / 255, input_shape=(*IMAGE_SIZE, 3)),
+        tf.keras.layers.Conv2D(2, 3, padding="same", activation="relu"),
+        tf.keras.layers.MaxPooling2D(),
         tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(164, activation="relu"),
         tf.keras.layers.Dense(164, activation="relu"),
@@ -46,60 +48,42 @@ class AccuracyCallback(tf.keras.callbacks.Callback):
             self.model.stop_training = True
 
 
-train_generator = tf.keras.utils.image_dataset_from_directory(
-    TRAIN_PATH,
-    validation_split=VALIDATION_SPLIT,
-    label_mode=CLASS_MODE,
-    image_size=IMAGE_SIZE,
-    interpolation=INTERPOLATION,
-    batch_size=BATCH_SIZE,
-    seed=SEED,
-    subset="training",
-)
-validation_generator = tf.keras.utils.image_dataset_from_directory(
-    TRAIN_PATH,
-    validation_split=VALIDATION_SPLIT,
-    label_mode=CLASS_MODE,
-    image_size=IMAGE_SIZE,
-    interpolation=INTERPOLATION,
-    batch_size=BATCH_SIZE,
-    seed=SEED,
-    subset="validation",
-)
-
-print(train_generator.element_spec)
-
-# I can't find a way to pull the number of images directly from the generators- which is stupid because they output it to console
-# this repeat stuff just outright doesn't work, even if I pass in the correct amount of repeats.
-# files = 0
-# for dir in os.listdir(TRAIN_PATH):
-#     files += len(os.listdir(os.path.join(TRAIN_PATH, dir)))
-# repeats = ceil((STEPS * EPOCHS * BATCH_SIZE) / files)
-# print(f"Using {repeats} repeats of training data")
-
-# train_generator.repeat(count=repeats)
-# validation_generator.repeat(count=repeats)
-
 MODEL.compile(loss=LOSS, optimizer=OPTIMIZER, metrics=METRICS)
 
-history = MODEL.fit(
-    train_generator,
-    validation_data=validation_generator,
-    verbose=2,
-    epochs=EPOCHS,
-    steps_per_epoch=STEPS,
-    callbacks=[AccuracyCallback()],
-)
-acc = history.history["accuracy"]
-val_acc = history.history["val_accuracy"]
-loss = history.history["loss"]
-val_loss = history.history["val_loss"]
+acc = []
+val_acc = []
+loss = []
+val_loss = []
 
-for i in range(REPEATS - 1):
-    if val_acc[-1] > VAL_ACCURACY_TARGET:
-        break
+for i in range(REPEATS):
+    try:
+        if val_acc[-1] > VAL_ACCURACY_TARGET:
+            break
+    except IndexError:
+        pass
 
     print(f"Repeat {i+1}")
+    train_generator = tf.keras.utils.image_dataset_from_directory(
+        TRAIN_PATH,
+        validation_split=VALIDATION_SPLIT,
+        label_mode=CLASS_MODE,
+        image_size=IMAGE_SIZE,
+        interpolation=INTERPOLATION,
+        batch_size=BATCH_SIZE,
+        seed=SEED,
+        subset="training",
+    )
+    validation_generator = tf.keras.utils.image_dataset_from_directory(
+        TRAIN_PATH,
+        validation_split=VALIDATION_SPLIT,
+        label_mode=CLASS_MODE,
+        image_size=IMAGE_SIZE,
+        interpolation=INTERPOLATION,
+        batch_size=BATCH_SIZE,
+        seed=SEED,
+        subset="validation",
+    )
+
     repeat_history = MODEL.fit(
         train_generator,
         validation_data=validation_generator,
@@ -112,6 +96,8 @@ for i in range(REPEATS - 1):
     val_acc += repeat_history.history["val_accuracy"]
     loss += repeat_history.history["loss"]
     val_loss += repeat_history.history["val_loss"]
+
+    SEED += 1
 
 epochs = range(len(acc))
 
