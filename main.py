@@ -124,7 +124,16 @@ def parse_arguments(argv=None):
         help="what type of debug images to save",
         type=str,
         nargs="*",
-        choices=["window", "chest", "slots", "slot", "gems", "name", "screenshotmode"],
+        choices=[
+            "window",
+            "chest",
+            "slots",
+            "slot",
+            "gems",
+            "tgems",
+            "name",
+            "screenshotmode",
+        ],
     )
 
     args = parser.parse_args(argv)
@@ -423,17 +432,26 @@ async def find_dungeon_gems(game, identifier: GemIdentifier):
     i = -1
     for gem in gems:
         i += 1
-        if ARGS.debug and "gems" in ARGS.debug:
+        if ARGS.debug:
             global debug_gems_counter, debug_tasks
-            create_dir(os.path.join(PATH, "output", gem[0]))
-            output_path = os.path.join(
-                PATH, "output", gem[0], f"{gem[0]}_{debug_gems_counter}.png"
-            )
-            debug_gems_counter += 1
-            debug_tasks.append(
-                asyncio.create_task(asyncio.to_thread(slots[i].save, output_path))
-            )
-
+            if "gems" in ARGS.debug:
+                create_dir(os.path.join(PATH, "output", gem[0]))
+                output_path = os.path.join(
+                    PATH, "output", gem[0], f"{gem[0]}_{debug_gems_counter}.png"
+                )
+                debug_gems_counter += 1
+                debug_tasks.append(
+                    asyncio.create_task(asyncio.to_thread(slots[i].save, output_path))
+                )
+            elif "tgems" in ARGS.debug and gem[0] in ARGS.gems:
+                create_dir(os.path.join(PATH, "output", gem[0]))
+                output_path = os.path.join(
+                    PATH, "output", gem[0], f"{gem[0]}_{debug_gems_counter}.png"
+                )
+                debug_gems_counter += 1
+                debug_tasks.append(
+                    asyncio.create_task(asyncio.to_thread(slots[i].save, output_path))
+                )
     return gems
 
 
@@ -509,7 +527,7 @@ async def main():
         if "name" in ARGS.debug:
             global debug_name_counter
             debug_name_counter = 1
-        if "gems" in ARGS.debug:
+        if "gems" in ARGS.debug or "tgems" in ARGS.debug:
             global debug_gems_counter
             debug_gems_counter = 1
 
