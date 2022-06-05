@@ -23,7 +23,9 @@ METRICS = ["accuracy"]
 MODEL = tf.keras.models.Sequential(
     [
         tf.keras.layers.Rescaling(1.0 / 255, input_shape=(*IMAGE_SIZE, 3)),
-        tf.keras.layers.Conv2D(2, 3, padding="same", activation="relu"),
+        tf.keras.layers.Conv2D(2, 2, padding="same", activation="relu"),
+        tf.keras.layers.MaxPooling2D(),
+        tf.keras.layers.Conv2D(2, 2, padding="same", activation="relu"),
         tf.keras.layers.MaxPooling2D(),
         tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(164, activation="relu"),
