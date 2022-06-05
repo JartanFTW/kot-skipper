@@ -117,4 +117,4 @@ plt.legend()
 
 plt.show()
 
-MODEL.save(os.path.join(PATH, "model"))
+MODEL.save(os.path.join(PATH, "model.h5"))
