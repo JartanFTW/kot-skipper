@@ -73,7 +73,7 @@ def main():
 
     gem_identifier = None
     if ARGS.gems or (ARGS.debug and "screenshotmode" in ARGS.debug):
-        gem_identifier = GemIdentifier(PATH, debug=ARGS.debug, target_gems=ARGS.gems)
+        gem_identifier = GemIdentifier(PATH, tgems=ARGS.gems, debug=ARGS.debug)
 
     # debug screenshot mode
     if ARGS.debug and "screenshotmode" in ARGS.debug:
@@ -107,6 +107,7 @@ def main():
             retries += 1
             sleep(ARGS.delay)
             continue
+        retries = 0
 
         if not result:
             game.skip()
@@ -117,7 +118,7 @@ def main():
             input("Press Enter to continue")
         elif isinstance(result, tuple):
             print(
-                f"Dungeon gem {result[0]} with confidence {result[1]:.2f} meets target gem"
+                f"Dungeon gem {result[0]} with {result[1]*100:.2f}% confidence meets target gem"
             )
             input("Press Enter to continue")
 
