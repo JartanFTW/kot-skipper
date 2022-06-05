@@ -5,7 +5,7 @@ A command line interface tool for the mobile game King of Thieves by ZeptoLab. A
 This tool allows you to automatically skip through bases for target gold count and/or target gems color/tier.
 
 Example use:
-`main.py bluestacks -gd 50000 --gems 4 6`
+`main.py bluestacks -gd 50000 --gems 4 6 r5 b`
 
 ## Arguments
 
