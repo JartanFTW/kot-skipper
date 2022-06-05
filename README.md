@@ -59,3 +59,7 @@ This is made for educational purposes. Throughout this project I have learnt:
 2. Some things about tkinter. This video got me started (first 18 minutes): https://www.youtube.com/watch?v=xuXYKhdoTsw
 
 3. Command line arguments in Python. https://docs.python.org/3/library/argparse.html
+
+# Inspiration  
+  
+A thank you to the repository that inspired me: https://github.com/23cku0r/KOT_AUTO_SKIP
