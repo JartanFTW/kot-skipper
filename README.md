@@ -2,6 +2,11 @@
 
 A command line interface tool for the mobile game King of Thieves by ZeptoLab. All rights to the game and it's assets to the rightful owners.
 
+This tool allows you to automatically skip through bases for target gold count and/or target gems color/tier.
+
+Example use:
+`main.py bluestacks -gd 50000 --gems 4 6`
+
 ## Arguments
 
 ### -h
@@ -41,7 +46,7 @@ How many seconds to wait between retries and after skipping
 
 Enables the program to output images to file during different stages of processing.
 Screenshotmode allows the user to use the program to identify gold/gems on-demand. Useful for getting particular debug images.  
-Options: window, chest, slot, slot, gems, name, screenshotmode
+Options: window, chest, slot, slot, gems, screenshotmode
 
 # Educational Purpose
 
