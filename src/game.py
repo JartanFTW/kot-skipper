@@ -5,7 +5,7 @@ from adb_shell.adb_device import AdbDeviceTcp, _FileSyncTransactionInfo
 from PIL import Image
 from pyscreeze import locate
 
-from .utils import write_file
+from .utils import write_image
 from .errors import SkipNotFoundException
 
 
@@ -69,7 +69,7 @@ class GameManager:
 
         if self.debug and "window" in self.debug:
             output_path = os.path.join(self.path, "output", "window.png")
-            write_file(output_path)
+            write_image(output_path, image)
 
         self._last_screenshot = image
         return image

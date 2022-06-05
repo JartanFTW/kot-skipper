@@ -6,7 +6,7 @@ from PIL import Image
 from pyscreeze import locate
 
 from .errors import ChestNotFoundException, GoldRecognitionFailureException
-from .utils import write_file
+from .utils import write_image
 
 
 class GoldIdentifier:
@@ -51,7 +51,7 @@ class GoldIdentifier:
 
         if self.debug and "chest" in self.debug:
             output_path = os.path.join(self.path, "output", f"chest.png")
-            write_file(output_path, chest)
+            write_image(output_path, chest)
 
         chest_array = array(chest)
         results = self.reader.readtext(

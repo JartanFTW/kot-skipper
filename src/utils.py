@@ -1,15 +1,39 @@
 import os
 
 
-def write_file(path, content):
-    counter = 0
+def get_available_output(path):
+    next_path = path
+    if os.path.isfile(path):
+        file_name, file_extension = os.path.basename(path).split(".")
+        file_path = os.path.dirname(path)
+        i = 1
+        next_path = os.path.join(
+            file_path, file_name + f" ({str(i)})" + "." + file_extension
+        )
+        while os.path.isfile(next_path):
+            i += 1
+            next_path = os.path.join(
+                file_path, file_name + f" ({str(i)})" + "." + file_extension
+            )
+    print(next_path)
+    return next_path
 
-    while os.path.isfile(path):
-        counter += 1
-        path = os.path.splitext(path)[0] + f" ({counter})" + os.path.splitext(path)[1]
 
-    with open(path, "w") as file:
+def write_file(path, content, binary=False):
+
+    path = get_available_output(path)
+
+    mode = "w"
+    if binary:
+        mode += "b"
+
+    with open(path, mode) as file:
         file.write(content)
+
+
+def write_image(path, image):
+    path = get_available_output(path)
+    image.save(path)
 
 
 def create_dir(dir):

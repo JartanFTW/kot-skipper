@@ -7,7 +7,7 @@ from pyscreeze import locate
 from tensorflow import keras
 
 from .errors import ChestNotFoundException
-from .utils import write_file, create_dir
+from .utils import write_image, create_dir
 
 
 class GemIdentifier:
@@ -55,7 +55,7 @@ class GemIdentifier:
 
         if self.debug and "slots" in self.debug:
             output_path = os.path.join(self.path, "output", f"slots.png")
-            write_file(output_path, slots)
+            write_image(output_path, slots)
 
         return slots
 
@@ -77,7 +77,7 @@ class GemIdentifier:
 
             if self.debug and "slot" in self.debug:
                 output_path = os.path.join(self.path, "output", f"slot.png")
-                write_file(output_path, slot)
+                write_image(output_path, slot)
 
         return individual_slots
 
@@ -92,11 +92,11 @@ class GemIdentifier:
         if self.debug and "gems" in self.debug:
             create_dir(os.path.join(self.path, "output", result[0]))
             output_path = os.path.join(self.path, "output", result[0], "gems.png")
-            write_file(output_path, image)
+            write_image(output_path, image)
         elif self.debug and "tgems" in self.debug and result[0] in self.tgems:
             create_dir(os.path.join(self.path, "output", result[0]))
             output_path = os.path.join(self.path, "output", result[0], "tgems.png")
-            write_file(output_path, image)
+            write_image(output_path, image)
 
         return result
 
@@ -115,7 +115,7 @@ class GemIdentifier:
             for result in results:
                 create_dir(os.path.join(self.path, "output", result[0]))
                 output_path = os.path.join(self.path, "output", result[0], "gems.png")
-                write_file(output_path, image)
+                write_image(output_path, image)
         elif self.debug and "tgems" in self.debug:
             for result in results:
                 if result[0] in self.tgems:
@@ -123,7 +123,7 @@ class GemIdentifier:
                     output_path = os.path.join(
                         self.path, "output", result[0], "tgems.png"
                     )
-                    write_file(output_path, image)
+                    write_image(output_path, image)
 
         return results
 
