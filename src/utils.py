@@ -15,7 +15,7 @@ def get_available_output(path):
             next_path = os.path.join(
                 file_path, file_name + f" ({str(i)})" + "." + file_extension
             )
-    print(next_path)
+
     return next_path
 
 
