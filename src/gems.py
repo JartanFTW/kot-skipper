@@ -27,7 +27,7 @@ class GemIdentifier:
 
         self.chest = Image.open(os.path.join(path, "assets", "chest.png"))
 
-    def _find_slots(self, slots, screenshot: Image):
+    def _find_slots(self, screenshot: Image):
         chest = locate(self.chest, screenshot, grayscale=False, confidence=0.5)
 
         if not chest:
