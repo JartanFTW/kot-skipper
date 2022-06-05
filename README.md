@@ -4,7 +4,7 @@ A command line interface tool for the mobile game King of Thieves by ZeptoLab. A
 
 This tool allows you to automatically skip through bases for target gold count and/or target gems color/tier.
 
-Currently only Bluestacks has been tested for functionality.
+Currently only Bluestacks has been tested for functionality. Make sure your display resolution in bluestacks settings is set to 1600 x 900 otherwise identification **will** fail.
 
 **You MUST enable android debug bridge in Settings > Advanced**
 
