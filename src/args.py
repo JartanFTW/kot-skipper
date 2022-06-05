@@ -54,7 +54,7 @@ def parse_arguments(argv=None):
         "--delay",
         help="how many seconds to wait between retries and after skipping",
         type=float,
-        default=5,
+        default=1,
     )
 
     parser.add_argument(
@@ -69,7 +69,6 @@ def parse_arguments(argv=None):
             "slot",
             "gems",
             "tgems",
-            "name",
             "screenshotmode",
         ],
     )
