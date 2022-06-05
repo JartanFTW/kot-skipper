@@ -2,6 +2,11 @@
 
 A command line interface tool for the mobile game King of Thieves by ZeptoLab. All rights to the game and it's assets to the rightful owners.
 
+This tool allows you to automatically skip through bases for target gold count and/or target gems color/tier.
+
+Example use:
+`main.py bluestacks -gd 50000 --gems 4 6 r5 b`
+
 ## Arguments
 
 ### -h
@@ -41,7 +46,7 @@ How many seconds to wait between retries and after skipping
 
 Enables the program to output images to file during different stages of processing.
 Screenshotmode allows the user to use the program to identify gold/gems on-demand. Useful for getting particular debug images.  
-Options: window, chest, slot, slot, gems, name, screenshotmode
+Options: window, chest, slot, slot, gems, screenshotmode
 
 # Educational Purpose
 
@@ -54,3 +59,7 @@ This is made for educational purposes. Throughout this project I have learnt:
 2. Some things about tkinter. This video got me started (first 18 minutes): https://www.youtube.com/watch?v=xuXYKhdoTsw
 
 3. Command line arguments in Python. https://docs.python.org/3/library/argparse.html
+
+# Inspiration  
+  
+A thank you to the repository that inspired me: https://github.com/23cku0r/KOT_AUTO_SKIP
