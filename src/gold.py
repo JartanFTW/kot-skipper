@@ -55,7 +55,7 @@ class GoldIdentifier:
 
         chest_array = array(chest)
         results = self.reader.readtext(
-            chest_array, allowlist="0123456789", low_text=0.5, width_ths=0.3
+            chest_array, allowlist="0123456789", low_text=0.5, link_threshold=0.8
         )
         result = self._best_result(results, type=int)
 
