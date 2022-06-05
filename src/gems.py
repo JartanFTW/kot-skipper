@@ -16,7 +16,7 @@ class GemIdentifier:
         self.tgems = tgems
         self.debug = debug
 
-        self.model = keras.models.load_model(os.path.join(path, "identify_gem"))
+        self.model = keras.models.load_model(os.path.join(path, "identify_gem.h5"))
         self.categories = [
             "0",
             'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 
