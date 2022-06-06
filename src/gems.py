@@ -85,7 +85,7 @@ class GemIdentifier:
         resized_image = image.resize((50, 50), resample=Image.Resampling.NEAREST)
         resized_array = array(resized_image)
         input_array = array([resized_array])
-        prediction = self.model.predict(input_array, verbose=0).tolist()
+        prediction = self.model.predict(input_array, verbose=0).tolist()[0]
 
         result = (self.categories[prediction.index(max(prediction))], max(prediction))
 
@@ -101,30 +101,7 @@ class GemIdentifier:
         return result
 
     def identify_gems(self, images: list):
-        image_arrays = []
-        for image in images:
-            resized_image = image.resize((50, 50), resample=Image.Resampling.NEAREST)
-            resized_array = array(resized_image)
-            image_arrays.append(resized_array)
-        input_array = array(image_arrays)
-        predictions = [x.tolist() for x in self.model.predict(input_array, verbose=0)]
-
-        results = [(self.categories[x.index(max(x))], max(x)) for x in predictions]
-
-        if self.debug and "gems" in self.debug:
-            for result in results:
-                create_dir(os.path.join(self.path, "output", result[0]))
-                output_path = os.path.join(self.path, "output", result[0], "gems.png")
-                write_image(output_path, image)
-        elif self.debug and "tgems" in self.debug:
-            for result in results:
-                if result[0] in self.tgems:
-                    create_dir(os.path.join(self.path, "output", result[0]))
-                    output_path = os.path.join(
-                        self.path, "output", result[0], "tgems.png"
-                    )
-                    write_image(output_path, image)
-
+        results = [self.identify_gem(x) for x in images]
         return results
 
     def identify(self, screenshot: Image):
