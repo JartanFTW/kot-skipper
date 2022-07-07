@@ -4,12 +4,12 @@ import matplotlib.pyplot as plt
 
 # START CONFIG
 
-VAL_ACCURACY_TARGET = 0.99
+VAL_ACCURACY_TARGET = 0.995
 # num of images MUST BE >= BATCH_SIZE * EPOCHS * STEPS
-BATCH_SIZE = 40
-EPOCHS = 50
-STEPS = 10
-REPEATS = 5
+BATCH_SIZE = 1
+EPOCHS = 100
+STEPS = 280
+REPEATS = 6
 SEED = 100
 
 VALIDATION_SPLIT = 0.1
@@ -19,7 +19,11 @@ CLASS_MODE = "categorical"
 LOSS = "categorical_crossentropy"
 INTERPOLATION = "nearest"
 OPTIMIZER = tf.keras.optimizers.Nadam()
-METRICS = ["accuracy"]
+METRICS = [
+    "accuracy",
+    tf.keras.metrics.FalsePositives(),
+    tf.keras.metrics.FalseNegatives(),
+]
 MODEL = tf.keras.models.Sequential(
     [
         tf.keras.layers.Rescaling(1.0 / 255, input_shape=(*IMAGE_SIZE, 3)),
@@ -28,7 +32,7 @@ MODEL = tf.keras.models.Sequential(
         tf.keras.layers.Conv2D(2, 2, padding="same", activation="relu"),
         tf.keras.layers.MaxPooling2D(),
         tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(164, activation="relu"),
+        tf.keras.layers.Dense(205, activation="relu"),
         tf.keras.layers.Dense(164, activation="relu"),
         tf.keras.layers.Dense(41, activation="softmax"),
     ]
@@ -38,7 +42,6 @@ MODEL = tf.keras.models.Sequential(
 
 PATH = os.getcwd()
 TRAIN_PATH = os.path.join(PATH, "train")
-VALIDATION_PATH = os.path.join(PATH, "validation")
 
 
 class AccuracyCallback(tf.keras.callbacks.Callback):
