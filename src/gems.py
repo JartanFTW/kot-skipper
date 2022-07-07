@@ -19,11 +19,11 @@ class GemIdentifier:
         self.model = keras.models.load_model(os.path.join(path, "identify_gem.h5"))
         self.categories = [
             "0",
-            'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 
-            'g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 
-            'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 
-            'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8', 
-            'y1', 'y2', 'y3', 'y4', 'y5', 'y6', 'y7', 'y8']  # fmt: skip
+            "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", 
+            "g1", "g2", "g3", "g4", "g5", "g6", "g7", "g8", 
+            "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", 
+            "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", 
+            "y1", "y2", "y3", "y4", "y5", "y6", "y7", "y8"]  # fmt: skip
 
         self.chest = Image.open(os.path.join(path, "assets", "chest.png"))
 
