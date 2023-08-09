@@ -72,5 +72,5 @@ A thank you to the repository that inspired me: https://github.com/23cku0r/KOT_A
 You can contact me in the [Jartan's Tavern discord server](https://discord.gg/AsU7UPBZMs). We're always accepting new members, so come say hi! https://discord.gg/AsU7UPBZMs  
 If you would like to contact me (Jartan) personally, you can do so via any of the following means:  
 * Email: jgogox@gmail.com  
-* Discord User: Jartan#9796  
+* Discord Username: jartan  
 * Discord ID: 511608939477991425
