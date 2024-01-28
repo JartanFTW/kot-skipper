@@ -5,7 +5,6 @@ from time import sleep
 
 # Third Party
 import pyscreeze
-
 # Local
 from src.args import parse_arguments
 from src.errors import (
@@ -32,26 +31,18 @@ def setup():
 
 
 def scan_dungeon(game, gold_identifier, gem_identifier=None):
+    """
+    Scans dungeon for target gold and/or gems.
+    If target gold is found, returns int
+    If target gem is found, returns tuple (gem STR, confidence INT)
+    Otherwise returns None
+
+    """
     global last_gold
 
     screenshot = game.screenshot()
 
-    # Retry logic for gold identification
-    max_retries = 3
-    retries = 0
-    while retries < max_retries:
-        try:
-            gold = gold_identifier.identify(screenshot)
-            break  # Break the loop if identification is successful
-        except pyscreeze.ImageNotFoundException as e:
-            print(f"Gold identification failed - retry {retries + 1}")
-            retries += 1
-            sleep(ARGS.delay)
-            screenshot = game.screenshot()
-
-    if retries == max_retries:
-        # If max retries reached, raise an exception or handle it accordingly
-        raise GoldRecognitionFailureException("Gold identification failed after multiple retries")
+    gold = gold_identifier.identify(screenshot)
 
     if gold == last_gold:
         raise SameDungeonException
@@ -107,6 +98,11 @@ def main():
 
         try:
             result = scan_dungeon(game, gold_identifier, gem_identifier=gem_identifier)
+        except pyscreeze.ImageNotFoundException as e:
+            print("Image not found error - retry " + str(retries))
+            retries += 1
+            sleep(ARGS.delay)
+            continue
         except (
             SameDungeonException,
             GoldRecognitionFailureException,
