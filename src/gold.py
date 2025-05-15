@@ -38,7 +38,7 @@ class GoldIdentifier:
     def identify(self, screenshot: Image):
         try:
             chest = locate(self.chest, screenshot, grayscale=False, confidence=0.5)
-        except ImageNotFoundException:
+        except pyscreeze.ImageNotFoundException:
             raise ChestNotFoundException("identifying slots")
 
         if not chest:
