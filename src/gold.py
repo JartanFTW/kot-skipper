@@ -3,7 +3,7 @@ import os
 
 from easyocr import Reader
 from PIL import Image
-from pyscreeze import locate
+from pyscreeze import locate, ImageNotFoundException
 
 from .errors import ChestNotFoundException, GoldRecognitionFailureException
 from .utils import write_image
@@ -38,7 +38,7 @@ class GoldIdentifier:
     def identify(self, screenshot: Image):
         try:
             chest = locate(self.chest, screenshot, grayscale=False, confidence=0.5)
-        except pyscreeze.ImageNotFoundException:
+        except ImageNotFoundException:
             raise ChestNotFoundException("identifying slots")
 
         if not chest:
