@@ -36,7 +36,10 @@ class GoldIdentifier:
         return None
 
     def identify(self, screenshot: Image):
-        chest = locate(self.chest, screenshot, grayscale=False, confidence=0.5)
+        try:
+            chest = locate(self.chest, screenshot, grayscale=False, confidence=0.5)
+        except ImageNotFoundException:
+            raise ChestNotFoundException("identifying slots")
 
         if not chest:
             raise ChestNotFoundException("identifying slots")
